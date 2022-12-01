@@ -1,34 +1,47 @@
 use std::error::Error;
 use std::fs;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let file_str = fs::read_to_string("input.txt")?;
-    let mut elves: Vec<Vec<u32>> = Vec::new();
+fn get_elves(raw: &str) -> Vec<Vec<u32>> {
+    raw.split("\n\n")
+        .map(|raw_elf| {
+            raw_elf
+                .split('\n')
+                .filter(|value| value.len() > 0)
+                .map(move |value| value.parse::<u32>().unwrap())
+                .collect::<Vec<u32>>()
+        })
+        .collect()
+}
+
+fn get_elf_totals(elves: &Vec<Vec<u32>>) -> Vec<u32> {
     let mut totals: Vec<u32> = Vec::new();
 
-    for raw_elf in file_str.split("\n\n") {
-        let elf: Vec<u32> = raw_elf.split('\n')
-            .filter(|value| value.len() > 0)
-            .map(move |value| {
-                value.parse::<u32>().unwrap()
-            })
-            .collect();
-
+    for elf in elves {
         let sum = elf
             .clone()
             .into_iter()
             .reduce(|accum, item| accum + item)
             .unwrap();
 
-
-        elves.push(elf);
-        totals.push(sum);
+        totals.push(sum)
     }
 
-    let most = totals.iter().max().unwrap();
+    totals
+}
 
-    println!("{:?}{:?}", elves, totals);
-    println!("Max calories: {}", most);
+fn main() -> Result<(), Box<dyn Error>> {
+    let file_str = fs::read_to_string("input.txt")?;
+    let elves = get_elves(&file_str);
+    let mut totals: Vec<u32> = get_elf_totals(&elves);
+    totals.sort();
+    totals.reverse();
+
+    // let most = totals.iter().max().unwrap();
+    let most = totals[0];
+    let top3 = totals[0] + totals[1] + totals[2];
+
+    println!("Part 1: Most calories for one elf: {}", most);
+    println!("Part 2: Calories for top three elves: {}", top3);
 
     Ok(())
 }
