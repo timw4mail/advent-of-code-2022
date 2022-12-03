@@ -1,6 +1,3 @@
-use std::error::Error;
-use std::fs;
-
 #[derive(Debug, Copy, Clone)]
 enum Calculation {
     ByMove,
@@ -137,8 +134,8 @@ fn get_total(lines: &Vec<&str>, score_type: Calculation) -> u32 {
         .unwrap()
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let file_str = fs::read_to_string("input.txt")?;
+fn main() {
+    let file_str = include_str!("input.txt");
     let lines: Vec<&str> = file_str.lines().collect();
 
     let part1_total = get_total(&lines, ByMove);
@@ -146,6 +143,4 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Part 1: Final score: {}", part1_total);
     println!("Part 2: Final score: {}", part2_total);
-
-    Ok(())
 }
