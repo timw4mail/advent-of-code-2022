@@ -18,6 +18,17 @@ impl From<&str> for Range {
 impl Range {
     fn contains(&self, other: &Range) -> bool {
         self.low <= other.low && self.high >= other.high
+            || other.low <= self.low && other.high >= self.high
+    }
+
+    fn overlap(&self, other: &Range) -> bool {
+        let range_a = self.low..=self.high;
+        let range_b = other.low..=other.high;
+
+        range_a.contains(&other.low)
+            || range_a.contains(&other.high)
+            || range_b.contains(&self.low)
+            || range_b.contains(&self.high)
     }
 }
 
@@ -37,10 +48,19 @@ fn main() {
     let count = file_str
         .lines()
         .map(|line| parse_ranges(line))
-        .map(|(range_a, range_b)| range_a.contains(&range_b) || range_b.contains(&range_a))
+        .map(|(range_a, range_b)| range_a.contains(&range_b))
+        .filter(|contains| *contains == true)
+        .collect::<Vec<bool>>()
+        .len();
+
+    let overlap_count = file_str
+        .lines()
+        .map(|line| parse_ranges(line))
+        .map(|(range_a, range_b)| range_a.overlap(&range_b))
         .filter(|contains| *contains == true)
         .collect::<Vec<bool>>()
         .len();
 
     println!("Part 1: fully contained pairs: {}", count);
+    println!("Part 2: overlapping pairs: {}", overlap_count);
 }
