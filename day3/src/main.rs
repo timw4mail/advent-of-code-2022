@@ -1,4 +1,4 @@
-fn get_rucksack_items(list: &str) -> (Vec<char>, Vec<char>) {
+fn get_split_rucksack_items(list: &str) -> (Vec<char>, Vec<char>) {
     let all_chars: Vec<_> = list.chars().collect();
 
     let half_index = all_chars.len() / 2;
@@ -7,6 +7,10 @@ fn get_rucksack_items(list: &str) -> (Vec<char>, Vec<char>) {
     assert_eq!(halves.0.len(), halves.1.len());
 
     (halves.0.to_vec(), halves.1.to_vec())
+}
+
+fn get_rucksack_items(list: &str) -> Vec<char> {
+    list.chars().collect()
 }
 
 fn get_priority(item: char) -> u32 {
@@ -64,14 +68,35 @@ fn find_same_item(a: Vec<char>, b: Vec<char>) -> char {
     panic!("We should have already found the item")
 }
 
+fn find_same_item_in_three(a: &Vec<char>, b: &Vec<char>, c: &Vec<char>) -> char {
+    for ch in a {
+        if b.contains(&ch) && c.contains(&ch) {
+            return *ch;
+        }
+    }
+
+    panic!("We should have already found the common item");
+}
+
 fn main() {
     let file_str = include_str!("input.txt");
     let sum: u32 = file_str
         .lines()
-        .map(|line| get_rucksack_items(line))
+        .map(|line| get_split_rucksack_items(line))
         .map(|(a, b)| find_same_item(a, b))
         .map(|item| get_priority(item))
         .sum();
 
+    let sacks: Vec<Vec<char>> = file_str
+        .lines()
+        .map(|line| get_rucksack_items(line))
+        .collect();
+    let group_sum: u32 = sacks
+        .chunks(3)
+        .map(|chunk| find_same_item_in_three(&chunk[0], &chunk[1], &chunk[2]))
+        .map(|item| get_priority(item))
+        .sum();
+
     println!("Part 1 Priority Sum: {}", sum);
+    println!("Part 2 Group Sum: {}", group_sum);
 }
