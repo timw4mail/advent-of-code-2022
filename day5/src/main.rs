@@ -23,6 +23,23 @@ impl Move {
             }
         }
     }
+
+    fn apply_multiple(&self, layout: &mut Vec<Vec<char>>) {
+        let item_count = self.items;
+        let max = layout[self.from].len();
+        let min = max.checked_sub(item_count).unwrap_or(0);
+
+        let from = layout.get_mut(self.from).unwrap();
+
+        // Clone this so we can borrow immutably
+        let from2 = from.clone();
+        let (rem, to_move) = from2.split_at(min);
+
+        from.clear();
+        from.append(&mut rem.to_vec());
+
+        layout[self.to].append(&mut to_move.to_vec());
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -60,12 +77,20 @@ fn main() {
     let moves = parts[1];
 
     let mut layout = get_initial_layout();
-
     moves.lines().for_each(|line| {
         Move::from(line).apply(&mut layout);
     });
-
     let top_crates = get_position_string(&layout);
 
+    let mut layout = get_initial_layout();
+    moves
+        .lines()
+        .for_each(|line| Move::from(line).apply_multiple(&mut layout));
+    let top_crates_multiple = get_position_string(&layout);
+
     println!("Part 1: Top crates after moves: {}", top_crates);
+    println!(
+        "Part 2: Top crates after bulk container moves: {}",
+        top_crates_multiple
+    );
 }
