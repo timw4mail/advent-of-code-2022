@@ -1,6 +1,10 @@
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 
 const MAX_DIR_SIZE: u128 = 100_000;
+const TOTAL_DISK_SPACE: u128 = 70_000_000;
+const MIN_SPACE_REQUIRED: u128 = 30_000_000;
 
 #[derive(Debug)]
 struct File {
@@ -206,6 +210,26 @@ fn get_path_size_map(dir_map: &DirMap) -> HashMap<String, u128> {
     size_map
 }
 
+fn calculate_needed_space(used_space: u128) -> u128 {
+    MIN_SPACE_REQUIRED - (TOTAL_DISK_SPACE - used_space)
+}
+
+fn find_size_of_dir(min_size: u128, size_map: &HashMap<String, u128>) -> u128 {
+    size_map
+        .iter()
+        .map(|(_, v)| *v)
+        .filter(|v| *v > min_size)
+        .min()
+        .unwrap()
+}
+
+fn calculate_sum_of_dirs(size_map: &HashMap<String, u128>) -> u128 {
+    size_map
+        .iter()
+        .filter(|(_, v)| **v < MAX_DIR_SIZE)
+        .fold(0u128, |acc, (_, v)| acc + *v)
+}
+
 fn main() {
     let file_str = include_str!("input.txt");
     let mut path_map = DirMap::new();
@@ -216,11 +240,36 @@ fn main() {
         .for_each(|cmd| path_map.parse(cmd));
 
     let size_map = get_path_size_map(&path_map);
+    let size_sum = calculate_sum_of_dirs(&size_map);
 
-    let size_sum = size_map
-        .iter()
-        .filter(|(_, v)| **v < MAX_DIR_SIZE)
-        .fold(0u128, |acc, (_, v)| acc + *v);
+    let used_space = *size_map.get("/").unwrap();
+    let smallest_dir = find_size_of_dir(calculate_needed_space(used_space), &size_map);
 
     println!("Part 1: Sum of dirs 100K or smaller {:#?}", size_sum);
+    println!("Part 2: Size of smallest dir to delete: {}", smallest_dir);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_find_size_of_dir() {
+        let mut size_map: HashMap<String, u128> = HashMap::new();
+        size_map.insert("//e".to_string(), 584);
+        size_map.insert("//a".to_string(), 94853);
+        size_map.insert("//d".to_string(), 24933642);
+        size_map.insert("/".to_string(), 48381165);
+
+        let res = find_size_of_dir(8381165, &size_map);
+
+        assert_eq!(res, 24933642);
+    }
+
+    #[test]
+    fn test_calculate_needed_space() {
+        let res = calculate_needed_space(48381165);
+
+        assert_eq!(res, 8381165);
+    }
 }
