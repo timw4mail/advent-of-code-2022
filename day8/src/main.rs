@@ -76,14 +76,6 @@ impl<T> Grid<T> {
         self.vec.get_mut(idx)
     }
 
-    pub fn get_xy(&self, x: usize, y: usize) -> Option<&T> {
-        self.get(self.xy_idx(x, y))
-    }
-
-    pub fn get_xy_mut(&mut self, x: usize, y: usize) -> Option<&mut T> {
-        self.get_mut(self.xy_idx(x, y))
-    }
-
     pub fn row_first_idx(&self, row: usize) -> usize {
         let idx = row * self.width;
 
@@ -249,7 +241,10 @@ impl Grid<Tree> {
             .len()
     }
 
-    fn get_surrounding_trees(&self, reference: usize) -> (Vec<usize>, Vec<usize>, Vec<usize>, Vec<usize>) {
+    fn get_surrounding_trees(
+        &self,
+        reference: usize,
+    ) -> (Vec<usize>, Vec<usize>, Vec<usize>, Vec<usize>) {
         let (x, y) = self.idx_xy(reference);
 
         let mut top = self.get_column_indexes(x); // col[0..=x]
@@ -268,9 +263,49 @@ impl Grid<Tree> {
         (top, right, bottom, left)
     }
 
-    fn get_viewing_distance(&mut self, reference: usize) -> (usize, usize, usize, usize) {
+    fn get_viewing_distances(&self, reference: usize) -> [usize; 4] {
         let (t, r, b, l) = self.get_surrounding_trees(reference);
-        todo!();
+        let ref_tree_height = self.get(reference).unwrap().height;
+
+        [t, r, b, l]
+            .iter()
+            .map(|search| {
+                let mut count = 0usize;
+
+                for i in search {
+                    let height = match self.get(*i) {
+                        Some(h) => h.height,
+                        None => 0,
+                    };
+
+                    count += 1;
+
+                    if ref_tree_height <= height {
+                        break;
+                    }
+                }
+
+                count
+            })
+            .collect::<Vec<usize>>()
+            .try_into()
+            .unwrap()
+    }
+
+    fn get_scenic_score(&self, reference: usize) -> usize {
+        let [t, r, b, l] = self.get_viewing_distances(reference);
+
+        t * r * b * l
+    }
+
+    pub fn get_max_scenic_score(&self) -> usize {
+        self.vec
+            .iter()
+            .enumerate()
+            .map(|(idx, _)| idx)
+            .map(|idx| self.get_scenic_score(idx))
+            .max()
+            .unwrap()
     }
 }
 
@@ -281,8 +316,10 @@ fn main() {
     let mut grid = Grid::from_file_str(file_str);
     grid.mark_visible_trees();
     let visible_num = grid.get_visible_trees();
+    let scenic_score = grid.get_max_scenic_score();
 
     println!("Part 1: Number of visible trees: {}", visible_num);
+    println!("Part 2: Max scenic score: {}", scenic_score);
 }
 
 #[cfg(test)]
@@ -361,5 +398,23 @@ mod tests {
         assert_eq!(r, vec![8, 9]);
         assert_eq!(b, vec![12, 17, 22]);
         assert_eq!(l, vec![6, 5]);
+    }
+
+    #[test]
+    fn test_get_viewing_distances() {
+        let grid = Grid::from_file_str(get_data());
+
+        assert_eq!(grid.get_viewing_distances(7), [1, 2, 2, 1]);
+        assert_eq!(grid.get_viewing_distances(17), [2, 2, 1, 2]);
+    }
+
+    #[test]
+    fn test_get_scenic_score() {
+        let grid = Grid::from_file_str(get_data());
+
+        assert_eq!(grid.get_scenic_score(7), 4);
+        assert_eq!(grid.get_scenic_score(17), 8);
+
+        assert_eq!(grid.get_max_scenic_score(), 8);
     }
 }
