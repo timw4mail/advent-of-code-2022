@@ -68,6 +68,22 @@ impl<T> Grid<T> {
         (idx % self.width, idx / self.width)
     }
 
+    pub fn get(&self, idx: usize) -> Option<&T> {
+        self.vec.get(idx)
+    }
+
+    pub fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
+        self.vec.get_mut(idx)
+    }
+
+    pub fn get_xy(&self, x: usize, y: usize) -> Option<&T> {
+        self.get(self.xy_idx(x, y))
+    }
+
+    pub fn get_xy_mut(&mut self, x: usize, y: usize) -> Option<&mut T> {
+        self.get_mut(self.xy_idx(x, y))
+    }
+
     pub fn row_first_idx(&self, row: usize) -> usize {
         let idx = row * self.width;
 
@@ -129,6 +145,23 @@ impl<T> Grid<T> {
 }
 
 impl Grid<Tree> {
+    pub fn from_file_str(file_str: &'static str) -> Grid<Tree> {
+        let lines: Vec<&str> = file_str.lines().collect();
+        let width = lines[0].len();
+        let mut grid: Grid<Tree> = Grid::new(width);
+
+        for line in lines {
+            let mut row: Vec<Tree> = line
+                .chars()
+                .map(|ch| Tree::new(ch.to_digit(10).unwrap() as usize))
+                .collect();
+
+            grid.vec.append(&mut row);
+        }
+
+        grid
+    }
+
     fn mark_outer_trees_visible(&mut self) -> &mut Self {
         fn set_row_visible(row: &mut [Tree]) {
             row.iter_mut().for_each(|tree| {
@@ -187,7 +220,7 @@ impl Grid<Tree> {
             let mut tallest = 0usize;
 
             for idx in row_or_col {
-                let tree = &mut self.vec[idx];
+                let tree = self.get_mut(idx).unwrap();
 
                 if tallest < tree.height {
                     tree.set_visible(dir);
@@ -216,21 +249,28 @@ impl Grid<Tree> {
             .len()
     }
 
-    pub fn from_file_str(file_str: &'static str) -> Grid<Tree> {
-        let lines: Vec<&str> = file_str.lines().collect();
-        let width = lines[0].len();
-        let mut grid: Grid<Tree> = Grid::new(width);
+    fn get_surrounding_trees(&self, reference: usize) -> (Vec<usize>, Vec<usize>, Vec<usize>, Vec<usize>) {
+        let (x, y) = self.idx_xy(reference);
 
-        for line in lines {
-            let mut row: Vec<Tree> = line
-                .chars()
-                .map(|ch| Tree::new(ch.to_digit(10).unwrap() as usize))
-                .collect();
+        let mut top = self.get_column_indexes(x); // col[0..=x]
+        let bottom = top.split_off(y + 1); // col[(x+1)..]
+        let mut left = self.get_row_indexes(y); // row[0..=y]
+        let right = left.split_off(x + 1); // row[(y+1)..]
 
-            grid.vec.append(&mut row);
-        }
+        // Remove the index for the current tree
+        let _ = top.pop();
+        let _ = left.pop();
 
-        grid
+        // Reverse the top and left so the perspective is from the reference
+        top.reverse();
+        left.reverse();
+
+        (top, right, bottom, left)
+    }
+
+    fn get_viewing_distance(&mut self, reference: usize) -> (usize, usize, usize, usize) {
+        let (t, r, b, l) = self.get_surrounding_trees(reference);
+        todo!();
     }
 }
 
@@ -272,7 +312,7 @@ mod tests {
 
     #[test]
     fn test_get_column_indexes() {
-        let mut grid = Grid::from_file_str(get_data());
+        let grid = Grid::from_file_str(get_data());
 
         assert_eq!(grid.width, 5);
 
@@ -310,5 +350,16 @@ mod tests {
         }
 
         assert_eq!(grid.get_visible_trees(), 21usize);
+    }
+
+    #[test]
+    fn test_get_surrounding_trees() {
+        let grid = Grid::from_file_str(get_data());
+        let (t, r, b, l) = grid.get_surrounding_trees(7);
+
+        assert_eq!(t, vec![2]);
+        assert_eq!(r, vec![8, 9]);
+        assert_eq!(b, vec![12, 17, 22]);
+        assert_eq!(l, vec![6, 5]);
     }
 }
