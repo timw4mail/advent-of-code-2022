@@ -53,25 +53,35 @@ impl Location {
 
 #[derive(Debug, Default)]
 struct Rope {
-    head: Location,
-    tail: Location,
+    knots: Vec<Location>,
+    knot_count: usize,
     head_visited: HashSet<Location>,
     tail_visited: HashSet<Location>,
 }
 
 impl Rope {
-    pub fn new() -> Self {
+    pub fn new(knot_count: usize) -> Self {
         let mut rope = Self::default();
+        rope.knot_count = knot_count;
         rope.head_visited.insert(Location::default());
         rope.tail_visited.insert(Location::default());
+        rope.knots.resize_with(knot_count, Location::default);
 
         rope
     }
 
+    pub fn get_knot(&self, idx: usize) -> Location {
+        self.knots[idx]
+    }
+
+    pub fn is_tail(&self, idx: usize) -> bool {
+        idx == (self.knot_count - 1)
+    }
+
     pub fn move_head(&mut self, moves: Move) {
         for _ in 0..moves.amount {
-            let mut x = self.head.x;
-            let mut y = self.head.y;
+            let mut x = self.knots[0].x;
+            let mut y = self.knots[0].y;
 
             match moves.dir {
                 Up => {
@@ -89,44 +99,50 @@ impl Rope {
             }
 
             let to = Location::new(x, y);
+            self.knots[0] = to;
 
-            self.move_tail(to);
-            self.head = to;
-            self.head_visited.insert(to);
+            for i in 1..self.knot_count {
+                self.move_knot(i, i - 1);
+            }
+            // self.head = to;
+            // self.head_visited.insert(to);
         }
     }
 
-    fn must_tail_move(&mut self, head: Location) -> bool {
-        let distance = self.tail.get_distance(head);
+    fn must_move(&mut self, current: usize, prev: usize) -> bool {
+        let distance = self.get_knot(current).get_distance(self.get_knot(prev));
 
         distance >= 2.0
     }
 
-    fn move_tail(&mut self, head: Location) {
-        if !self.must_tail_move(head) {
+    fn move_knot(&mut self, c: usize, p: usize) {
+        if !self.must_move(c, p) {
             return;
         }
 
-        let mut tail = self.tail.clone();
+        let mut current = self.get_knot(c);
+        let prev = self.get_knot(p);
 
-        if tail.y != head.y {
-            if head.y - tail.y < 0 {
-                tail.y -= 1;
+        if current.y != prev.y {
+            if prev.y - current.y < 0 {
+                current.y -= 1;
             } else {
-                tail.y += 1;
+                current.y += 1;
             }
         }
 
-        if tail.x != head.x {
-            if head.x - tail.x < 0 {
-                tail.x -= 1;
+        if current.x != prev.x {
+            if prev.x - current.x < 0 {
+                current.x -= 1;
             } else {
-                tail.x += 1;
+                current.x += 1;
             }
         }
 
-        self.tail = tail;
-        self.tail_visited.insert(tail);
+        self.knots[c] = current;
+        if self.is_tail(c) {
+            self.tail_visited.insert(current);
+        }
     }
 
     fn get_tail_pos_count(&self) -> usize {
@@ -138,7 +154,8 @@ impl Rope {
 
 fn main() {
     let file_str = include_str!("input.txt");
-    let mut rope = Rope::new();
+
+    let mut rope = Rope::new(2);
 
     file_str
         .lines()
@@ -147,16 +164,29 @@ fn main() {
 
     let tail_positions = rope.get_tail_pos_count();
 
-    println!("Part 1: Number of tail movements: {}", tail_positions);
+    println!(
+        "Part 1: Number of tail movements with 2 knots: {}",
+        tail_positions
+    );
+
+    let mut rope = Rope::new(10);
+
+    file_str
+        .lines()
+        .map(Move::from_line)
+        .for_each(|m| rope.move_head(m));
+
+    let tail_positions = rope.get_tail_pos_count();
+
+    println!(
+        "Part 2: Number of tail movements with 10 knots: {}",
+        tail_positions
+    );
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn get_data() -> &'static str {
-        include_str!("test-input.txt")
-    }
 
     #[test]
     fn test_location_get_distance() {
@@ -169,15 +199,27 @@ mod tests {
 
     #[test]
     fn test_get_tail_position_count() {
-        let mut rope = Rope::new();
+        let file_str = include_str!("test-input.txt");
+        let mut rope = Rope::new(2);
 
-        assert_eq!(rope.get_tail_pos_count(), 1);
-
-        get_data()
+        file_str
             .lines()
             .map(Move::from_line)
             .for_each(|m| rope.move_head(m));
 
         assert_eq!(rope.get_tail_pos_count(), 13);
+    }
+
+    #[test]
+    fn test_get_tail_position_count_10_knots() {
+        let file_str = include_str!("test-input2.txt");
+        let mut rope = Rope::new(10);
+
+        file_str
+            .lines()
+            .map(Move::from_line)
+            .for_each(|m| rope.move_head(m));
+
+        assert_eq!(rope.get_tail_pos_count(), 36);
     }
 }
