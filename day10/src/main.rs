@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 #[derive(Debug)]
 enum Instruction {
     Addx(isize),
@@ -33,17 +31,21 @@ impl CPU {
         CPU { x: 1 }
     }
 
-    fn noop(&self) -> (usize, Option<isize>) {
-        (1, None)
+    fn noop(&self) -> usize {
+        1
     }
 
-    fn addx(&mut self, i: isize) -> (usize, Option<isize>) {
+    fn addx(&mut self, i: isize) -> usize {
         self.x += i;
 
-        (2, Some(self.x))
+        2
     }
 
-    pub fn run(&mut self, command: Instruction) -> (usize, Option<isize>) {
+    pub fn get_x(&self) -> isize {
+        self.x
+    }
+
+    pub fn run(&mut self, command: Instruction) -> usize {
         match command {
             Addx(i) => self.addx(i),
             Noop => self.noop(),
@@ -56,7 +58,7 @@ impl CPU {
 #[derive(Debug)]
 struct CycleCounter {
     cpu: CPU,
-    log: HashMap<usize, isize>,
+    log: Vec<isize>,
     cycle: usize,
 }
 
@@ -64,9 +66,28 @@ impl CycleCounter {
     pub fn new() -> Self {
         Self {
             cpu: CPU::new(),
-            log: HashMap::new(),
+            log: vec![1, 1],
             cycle: 1,
         }
+    }
+
+    fn run_line(&mut self, line: &str) {
+        let x = self.cpu.get_x();
+        let cycles = self.cpu.run(Instruction::from_line(line));
+
+        for _ in 0..(cycles - 1) {
+            self.cycle += 1;
+            self.log.push(x);
+        }
+
+        self.cycle += 1;
+        self.log.push(self.cpu.get_x());
+    }
+
+    pub fn get_signal_strength(&self, cycle: usize) -> usize {
+        let x = self.log.get(cycle).unwrap();
+
+        (*x as usize) * cycle
     }
 }
 
@@ -74,10 +95,34 @@ impl CycleCounter {
 
 fn main() {
     let file_str = include_str!("input.txt");
-    let instructions: Vec<Instruction> = file_str.lines().map(Instruction::from_line).collect();
+    let mut cc = CycleCounter::new();
+
+    file_str.lines().for_each(|line| cc.run_line(line));
+
+    let sum: usize = [20usize, 60, 100, 140, 180, 220]
+        .into_iter()
+        .map(|n| cc.get_signal_strength(n))
+        .sum();
+
+    println!("Part 1: sum of signal strength: {}", sum);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_get_signal_strength() {
+        let file_str = include_str!("test-input.txt");
+        let mut cc = CycleCounter::new();
+
+        file_str.lines().for_each(|line| cc.run_line(line));
+
+        assert_eq!(cc.get_signal_strength(20), 420);
+        assert_eq!(cc.get_signal_strength(60), 1140);
+        assert_eq!(cc.get_signal_strength(100), 1800);
+        assert_eq!(cc.get_signal_strength(140), 2940);
+        assert_eq!(cc.get_signal_strength(180), 2880);
+        assert_eq!(cc.get_signal_strength(220), 3960);
+    }
 }
