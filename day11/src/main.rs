@@ -1,6 +1,12 @@
 use std::collections::VecDeque;
 use std::ops::*;
 
+#[derive(Debug, PartialEq, Copy, Clone)]
+enum WorryType {
+    Normal,
+    Extra,
+}
+
 #[derive(Debug)]
 struct Operation {
     operator: char,
@@ -8,10 +14,10 @@ struct Operation {
 }
 
 impl Operation {
-    fn run(&self, old: usize) -> usize {
+    fn run(&self, old: u128) -> u128 {
         let other = match self.operand.as_str() {
             "old" => old,
-            _ => self.operand.parse::<usize>().unwrap(),
+            _ => self.operand.parse::<u128>().unwrap(),
         };
 
         match self.operator {
@@ -25,22 +31,23 @@ impl Operation {
 
 #[derive(Debug)]
 struct Monkey {
-    items: VecDeque<usize>,
+    items: VecDeque<u128>,
     operation: Operation,
     test: usize,
     pass_monkey: usize,
     fail_monkey: usize,
-    inspection_count: usize,
+    inspection_count: u128,
+    inspection_worry: WorryType,
 }
 
 impl Monkey {
-    fn from_behavior(raw: &str) -> Self {
+    fn from_behavior(raw: &str, inspection_worry: WorryType) -> Self {
         let lines: Vec<&str> = raw.lines().collect();
 
         let item_parts: Vec<&str> = lines[1].split(": ").collect();
-        let items: VecDeque<usize> = item_parts[1]
+        let items: VecDeque<u128> = item_parts[1]
             .split(", ")
-            .map(|i| i.parse::<usize>().unwrap())
+            .map(|i| i.parse::<u128>().unwrap())
             .collect();
 
         let op_parts: Vec<&str> = lines[2].split(" = ").collect();
@@ -69,29 +76,33 @@ impl Monkey {
             pass_monkey,
             fail_monkey,
             inspection_count: 0,
+            inspection_worry,
         }
     }
 
-    fn run_test(&self, item: usize) -> usize {
-        if item % self.test == 0 {
+    fn run_test(&self, item: u128) -> usize {
+        if item % (self.test as u128) == 0 {
             self.pass_monkey
         } else {
             self.fail_monkey
         }
     }
 
-    pub fn inspect(&mut self, item: usize) -> (usize, usize) {
+    pub fn inspect(&mut self, item: u128) -> (usize, u128) {
         self.inspection_count += 1;
 
-        let worry = self.operation.run(item);
-        let worry = worry / 3;
+        let worry = if self.inspection_worry == WorryType::Normal {
+            self.operation.run(item) / 3
+        } else {
+            self.operation.run(item)
+        };
 
         let new_monkey = self.run_test(worry);
 
         (new_monkey, worry)
     }
 
-    pub fn catch(&mut self, item: usize) {
+    pub fn catch(&mut self, item: u128) {
         self.items.push_back(item);
     }
 }
@@ -102,15 +113,17 @@ struct MonkeyGame {
 }
 
 impl MonkeyGame {
-    pub fn from_file_str(file_str: &'static str) -> Self {
+    pub fn from_file_str(file_str: &'static str, inspection_worry: WorryType) -> Self {
         let behaviors = file_str.split("\n\n");
 
         Self {
-            monkeys: behaviors.map(Monkey::from_behavior).collect(),
+            monkeys: behaviors
+                .map(|m| Monkey::from_behavior(m, inspection_worry))
+                .collect(),
         }
     }
 
-    fn throw(&mut self, item: usize, to: usize) {
+    fn throw(&mut self, item: u128, to: usize) {
         self.monkeys[to].catch(item);
     }
 
@@ -129,8 +142,8 @@ impl MonkeyGame {
         }
     }
 
-    pub fn get_inspection_counts(&self) -> Vec<usize> {
-        let mut counts: Vec<usize> = self.monkeys.iter().map(|m| m.inspection_count).collect();
+    pub fn get_inspection_counts(&self) -> Vec<u128> {
+        let mut counts: Vec<u128> = self.monkeys.iter().map(|m| m.inspection_count).collect();
 
         counts.sort();
 
@@ -140,13 +153,21 @@ impl MonkeyGame {
 
 fn main() {
     let file_str = include_str!("input.txt");
-    let mut game = MonkeyGame::from_file_str(file_str);
+    let mut game = MonkeyGame::from_file_str(file_str, WorryType::Normal);
     game.do_rounds(20);
 
     let inspections = game.get_inspection_counts();
     let monkey_business = inspections[0] * inspections[1];
 
     println!("Part 1 monkey business: {}", monkey_business);
+
+    // let mut game = MonkeyGame::from_file_str(file_str, WorryType::Extra);
+    // game.do_rounds(10_000);
+
+    // let inspections = game.get_inspection_counts();
+    // let monkey_business = inspections[0] * inspections[1];
+
+    // println!("Part 2 monkey business: {}", monkey_business);
 }
 
 #[cfg(test)]
@@ -159,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_monkey_round() {
-        let mut game = MonkeyGame::from_file_str(get_test_data());
+        let mut game = MonkeyGame::from_file_str(get_test_data(), WorryType::Normal);
         game.do_round();
 
         assert_eq!(game.monkeys[0].items, VecDeque::from([20, 23, 27, 26]));
@@ -173,7 +194,7 @@ mod tests {
 
     #[test]
     fn test_monkey_20_rounds() {
-        let mut game = MonkeyGame::from_file_str(get_test_data());
+        let mut game = MonkeyGame::from_file_str(get_test_data(), WorryType::Normal);
         game.do_rounds(20);
 
         assert_eq!(game.monkeys[0].inspection_count, 101);
