@@ -114,7 +114,7 @@ impl MonkeyGame {
         self.monkeys[to].catch(item);
     }
 
-    pub fn do_round(&mut self) {
+    fn do_round(&mut self) {
         for m in 0..self.monkeys.len() {
             while let Some(worry) = self.monkeys[m].items.pop_front() {
                 let (monkey_idx, worry) = self.monkeys[m].inspect(worry);
@@ -122,14 +122,31 @@ impl MonkeyGame {
             }
         }
     }
+
+    pub fn do_rounds(&mut self, rounds: usize) {
+        for _ in 0..rounds {
+            self.do_round();
+        }
+    }
+
+    pub fn get_inspection_counts(&self) -> Vec<usize> {
+        let mut counts: Vec<usize> = self.monkeys.iter().map(|m| m.inspection_count).collect();
+
+        counts.sort();
+
+        counts.into_iter().rev().collect()
+    }
 }
 
 fn main() {
     let file_str = include_str!("input.txt");
     let mut game = MonkeyGame::from_file_str(file_str);
-    game.do_round();
+    game.do_rounds(20);
 
-    println!("{:#?}", game);
+    let inspections = game.get_inspection_counts();
+    let monkey_business = inspections[0] * inspections[1];
+
+    println!("Part 1 monkey business: {}", monkey_business);
 }
 
 #[cfg(test)]
@@ -152,5 +169,14 @@ mod tests {
         );
         assert_eq!(game.monkeys[2].items, VecDeque::new());
         assert_eq!(game.monkeys[3].items, VecDeque::new());
+    }
+
+    #[test]
+    fn test_monkey_20_rounds() {
+        let mut game = MonkeyGame::from_file_str(get_test_data());
+        game.do_rounds(20);
+
+        assert_eq!(game.monkeys[0].inspection_count, 101);
+        assert_eq!(game.monkeys[3].inspection_count, 105);
     }
 }
