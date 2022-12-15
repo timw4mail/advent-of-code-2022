@@ -1,23 +1,33 @@
+use num_bigint::BigUint;
 use std::collections::VecDeque;
 use std::ops::*;
+use std::str::FromStr;
+
+/// Just to cut down on boilerplate for operations
+/// with primitive types
+#[inline(always)]
+fn big(n: usize) -> BigUint {
+    n.into()
+}
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-enum WorryType {
+pub enum WorryType {
     Normal,
     Extra,
 }
 
 #[derive(Debug)]
-struct Operation {
-    operator: char,
-    operand: String,
+pub struct Operation {
+    pub operator: char,
+    pub operand: String,
 }
 
 impl Operation {
-    fn run(&self, old: u128) -> u128 {
+    #[inline(always)]
+    pub fn run(&self, old: BigUint) -> BigUint {
         let other = match self.operand.as_str() {
-            "old" => old,
-            _ => self.operand.parse::<u128>().unwrap(),
+            "old" => old.clone(),
+            _ => BigUint::from_str(&self.operand).unwrap(),
         };
 
         match self.operator {
@@ -30,24 +40,24 @@ impl Operation {
 }
 
 #[derive(Debug)]
-struct Monkey {
-    items: VecDeque<u128>,
-    operation: Operation,
-    test: usize,
-    pass_monkey: usize,
-    fail_monkey: usize,
-    inspection_count: u128,
-    inspection_worry: WorryType,
+pub struct Monkey {
+    pub items: VecDeque<BigUint>,
+    pub operation: Operation,
+    pub test: usize,
+    pub pass_monkey: usize,
+    pub fail_monkey: usize,
+    pub inspection_count: BigUint,
+    pub inspection_worry: WorryType,
 }
 
 impl Monkey {
-    fn from_behavior(raw: &str, inspection_worry: WorryType) -> Self {
+    pub fn from_behavior(raw: &str, inspection_worry: WorryType) -> Self {
         let lines: Vec<&str> = raw.lines().collect();
 
         let item_parts: Vec<&str> = lines[1].split(": ").collect();
-        let items: VecDeque<u128> = item_parts[1]
+        let items: VecDeque<BigUint> = item_parts[1]
             .split(", ")
-            .map(|i| i.parse::<u128>().unwrap())
+            .map(|i| i.parse::<BigUint>().unwrap())
             .collect();
 
         let op_parts: Vec<&str> = lines[2].split(" = ").collect();
@@ -75,41 +85,42 @@ impl Monkey {
             test,
             pass_monkey,
             fail_monkey,
-            inspection_count: 0,
+            inspection_count: big(0),
             inspection_worry,
         }
     }
 
-    fn run_test(&self, item: u128) -> usize {
-        if item % (self.test as u128) == 0 {
+    pub fn run_test(&self, item: BigUint) -> usize {
+        if item % big(self.test) == big(0) {
             self.pass_monkey
         } else {
             self.fail_monkey
         }
     }
 
-    pub fn inspect(&mut self, item: u128) -> (usize, u128) {
-        self.inspection_count += 1;
+    #[inline(always)]
+    pub fn inspect(&mut self, item: BigUint) -> (usize, BigUint) {
+        self.inspection_count += big(1);
 
         let worry = if self.inspection_worry == WorryType::Normal {
-            self.operation.run(item) / 3
+            self.operation.run(item) / big(3)
         } else {
             self.operation.run(item)
         };
 
-        let new_monkey = self.run_test(worry);
+        let new_monkey = self.run_test(worry.clone());
 
         (new_monkey, worry)
     }
 
-    pub fn catch(&mut self, item: u128) {
+    pub fn catch(&mut self, item: BigUint) {
         self.items.push_back(item);
     }
 }
 
 #[derive(Debug)]
-struct MonkeyGame {
-    monkeys: Vec<Monkey>,
+pub struct MonkeyGame {
+    pub monkeys: Vec<Monkey>,
 }
 
 impl MonkeyGame {
@@ -123,11 +134,11 @@ impl MonkeyGame {
         }
     }
 
-    fn throw(&mut self, item: u128, to: usize) {
+    pub fn throw(&mut self, item: BigUint, to: usize) {
         self.monkeys[to].catch(item);
     }
 
-    fn do_round(&mut self) {
+    pub fn do_round(&mut self) {
         for m in 0..self.monkeys.len() {
             while let Some(worry) = self.monkeys[m].items.pop_front() {
                 let (monkey_idx, worry) = self.monkeys[m].inspect(worry);
@@ -136,38 +147,56 @@ impl MonkeyGame {
         }
     }
 
-    pub fn do_rounds(&mut self, rounds: usize) {
-        for _ in 0..rounds {
+    pub fn do_rounds(&mut self, rounds: usize) -> &Self {
+        for r in 0..rounds {
+            if r % 100 == 0 {
+                println!("Running round {}", r);
+            }
+
             self.do_round();
         }
+
+        self
     }
 
-    pub fn get_inspection_counts(&self) -> Vec<u128> {
-        let mut counts: Vec<u128> = self.monkeys.iter().map(|m| m.inspection_count).collect();
+    pub fn get_inspection_counts(&self) -> Vec<BigUint> {
+        let mut counts: Vec<BigUint> = self
+            .monkeys
+            .iter()
+            .map(|m| m.inspection_count.clone())
+            .collect();
 
         counts.sort();
 
         counts.into_iter().rev().collect()
     }
+
+    pub fn get_monkey_business(&self) -> BigUint {
+        let inspections = self.get_inspection_counts();
+
+        inspections.get(0).unwrap() * inspections.get(1).unwrap()
+    }
 }
 
 fn main() {
     let file_str = include_str!("input.txt");
-    let mut game = MonkeyGame::from_file_str(file_str, WorryType::Normal);
-    game.do_rounds(20);
+    let monkey_business1 = MonkeyGame::from_file_str(file_str, WorryType::Normal)
+        .do_rounds(20)
+        .get_monkey_business();
 
-    let inspections = game.get_inspection_counts();
-    let monkey_business = inspections[0] * inspections[1];
+    println!("Part 1 monkey business: {}", monkey_business1);
 
-    println!("Part 1 monkey business: {}", monkey_business);
+    let monkey_business1 = MonkeyGame::from_file_str(file_str, WorryType::Extra)
+        .do_rounds(500)
+        .get_monkey_business();
 
-    // let mut game = MonkeyGame::from_file_str(file_str, WorryType::Extra);
-    // game.do_rounds(10_000);
+    println!("monkey business 400 rounds: {}", monkey_business1);
 
-    // let inspections = game.get_inspection_counts();
-    // let monkey_business = inspections[0] * inspections[1];
-
-    // println!("Part 2 monkey business: {}", monkey_business);
+    // let monkey_business2 = MonkeyGame::from_file_str(file_str, WorryType::Extra)
+    //     .do_rounds(10_000)
+    //     .get_monkey_business();
+    //
+    // println!("Part 2 monkey business: {}", monkey_business2);
 }
 
 #[cfg(test)]
@@ -183,10 +212,20 @@ mod tests {
         let mut game = MonkeyGame::from_file_str(get_test_data(), WorryType::Normal);
         game.do_round();
 
-        assert_eq!(game.monkeys[0].items, VecDeque::from([20, 23, 27, 26]));
+        assert_eq!(
+            game.monkeys[0].items,
+            VecDeque::from([big(20), big(23), big(27), big(26)])
+        );
         assert_eq!(
             game.monkeys[1].items,
-            VecDeque::from([2080, 25, 167, 207, 401, 1046])
+            VecDeque::from([
+                big(2080),
+                big(25),
+                big(167),
+                big(207),
+                big(401),
+                big(1046)
+            ])
         );
         assert_eq!(game.monkeys[2].items, VecDeque::new());
         assert_eq!(game.monkeys[3].items, VecDeque::new());
@@ -197,7 +236,15 @@ mod tests {
         let mut game = MonkeyGame::from_file_str(get_test_data(), WorryType::Normal);
         game.do_rounds(20);
 
-        assert_eq!(game.monkeys[0].inspection_count, 101);
-        assert_eq!(game.monkeys[3].inspection_count, 105);
+        assert_eq!(game.monkeys[0].inspection_count, big(101));
+        assert_eq!(game.monkeys[3].inspection_count, big(105));
+    }
+
+    fn test_monkey_10000_rounds() {
+        let mut game = MonkeyGame::from_file_str(get_test_data(), WorryType::Extra);
+        game.do_rounds(10_000);
+
+        assert_eq!(game.monkeys[0].inspection_count, big(52166));
+        assert_eq!(game.monkeys[3].inspection_count, big(52013));
     }
 }
