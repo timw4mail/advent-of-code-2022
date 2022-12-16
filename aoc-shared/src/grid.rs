@@ -106,3 +106,31 @@ impl<T> Grid2d<T> for Grid<T> {
         &mut self.vec[start..=end]
     }
 }
+
+#[macro_export]
+/// Simplifies newtype wrapping of the `Grid` struct
+macro_rules! impl_grid_newtype {
+    ($($struct: tt, $target: path, $type: ty),* ) => {
+        $(
+            impl ::core::ops::Deref for $struct<$type> {
+                type Target = $target;
+
+                fn deref(&self) -> &Self::Target {
+                    &self.0
+                }
+            }
+
+            impl ::core::ops::DerefMut for $struct<$type> {
+                fn deref_mut(&mut self) -> &mut Self::Target {
+                    &mut self.0
+                }
+            }
+
+            impl $struct<$type> {
+                pub fn new(width: usize) -> Self {
+                    $struct(<$target>::new(width))
+                }
+            }
+        )*
+    }
+}

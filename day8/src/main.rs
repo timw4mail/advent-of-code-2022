@@ -1,4 +1,4 @@
-use aoc_shared::deref;
+use aoc_shared::impl_grid_newtype;
 use aoc_shared::grid::Grid as BaseGrid;
 use aoc_shared::grid::Grid2d;
 use std::collections::HashSet;
@@ -53,13 +53,9 @@ impl Tree {
 // 2. Implement the Deref trait for the wrapped struct
 #[derive(Debug)]
 pub struct Grid<T>(BaseGrid<T>);
-deref!(Grid<Tree>, BaseGrid<Tree>);
+impl_grid_newtype!(Grid, BaseGrid<Tree>, Tree);
 
 impl Grid<Tree> {
-    pub fn new(width: usize) -> Self {
-        Grid(BaseGrid::new(width))
-    }
-
     pub fn from_file_str(file_str: &'static str) -> Grid<Tree> {
         let lines: Vec<&str> = file_str.lines().collect();
         let width = lines[0].len();
