@@ -1,4 +1,6 @@
 pub mod grid;
+pub mod enums;
+
 pub use grid::*;
 
 #[macro_export]
