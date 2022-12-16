@@ -1,7 +1,7 @@
+use aoc_shared::deref;
 use aoc_shared::grid::Grid as BaseGrid;
 use aoc_shared::grid::Grid2d;
 use std::collections::HashSet;
-use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
 enum VisibleDirection {
@@ -53,18 +53,7 @@ impl Tree {
 // 2. Implement the Deref trait for the wrapped struct
 #[derive(Debug)]
 pub struct Grid<T>(BaseGrid<T>);
-impl<T> Deref for Grid<T> {
-    type Target = BaseGrid<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl<T> DerefMut for Grid<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
+deref!(Grid<Tree>, BaseGrid<Tree>);
 
 impl Grid<Tree> {
     pub fn new(width: usize) -> Self {
