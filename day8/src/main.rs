@@ -1,4 +1,7 @@
+use aoc_shared::grid::Grid as BaseGrid;
+use aoc_shared::grid::Grid2d;
 use std::collections::HashSet;
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
 enum VisibleDirection {
@@ -44,99 +47,30 @@ impl Tree {
 
 // ----------------------------------------------------------------------------
 
+// Here is the trick for using a library type as if it were
+// local (so you can directly implement methods).
+// 1. Wrap the type in a unit struct
+// 2. Implement the Deref trait for the wrapped struct
 #[derive(Debug)]
-struct Grid<T> {
-    width: usize,
-    vec: Vec<T>,
+pub struct Grid<T>(BaseGrid<T>);
+impl<T> Deref for Grid<T> {
+    type Target = BaseGrid<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
-
-impl<T> Grid<T> {
-    pub fn new(width: usize) -> Self {
-        Grid {
-            width,
-            vec: Vec::new(),
-        }
-    }
-
-    // Convert x,y coordinate into linear array index
-    pub fn xy_idx(&self, x: usize, y: usize) -> usize {
-        (y * self.width) + x
-    }
-
-    /// Convert linear array index to x,y coordinate
-    pub fn idx_xy(&self, idx: usize) -> (usize, usize) {
-        (idx % self.width, idx / self.width)
-    }
-
-    pub fn get(&self, idx: usize) -> Option<&T> {
-        self.vec.get(idx)
-    }
-
-    pub fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
-        self.vec.get_mut(idx)
-    }
-
-    pub fn row_first_idx(&self, row: usize) -> usize {
-        let idx = row * self.width;
-
-        if idx < self.vec.len() {
-            idx
-        } else {
-            self.vec.len()
-        }
-    }
-
-    pub fn row_last_idx(&self, row: usize) -> usize {
-        if (row + 1) > self.num_rows() {
-            return self.vec.len();
-        }
-
-        self.row_first_idx(row + 1) - 1
-    }
-
-    pub fn num_rows(&self) -> usize {
-        self.vec.len() / self.width
-    }
-
-    pub fn num_cols(&self) -> usize {
-        self.width
-    }
-
-    pub fn get_row(&mut self, row_num: usize) -> &mut [T] {
-        let start = self.row_first_idx(row_num);
-        let end = self.row_last_idx(row_num);
-
-        &mut self.vec[start..=end]
-    }
-
-    pub fn get_row_indexes(&self, row_num: usize) -> Vec<usize> {
-        let start = self.row_first_idx(row_num);
-        let end = self.row_last_idx(row_num);
-
-        (start..=end).collect()
-    }
-
-    pub fn get_column_indexes(&self, col_num: usize) -> Vec<usize> {
-        let mut indexes = Vec::new();
-
-        if col_num >= self.num_cols() {
-            panic!(
-                "Asked for column {}, there are {} columns",
-                col_num,
-                self.num_cols()
-            );
-        }
-
-        for r in 0..self.num_rows() {
-            let idx = self.width * r + col_num;
-            indexes.push(idx);
-        }
-
-        indexes
+impl<T> DerefMut for Grid<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
 impl Grid<Tree> {
+    pub fn new(width: usize) -> Self {
+        Grid(BaseGrid::new(width))
+    }
+
     pub fn from_file_str(file_str: &'static str) -> Grid<Tree> {
         let lines: Vec<&str> = file_str.lines().collect();
         let width = lines[0].len();
@@ -163,7 +97,8 @@ impl Grid<Tree> {
 
         // Set top/bottom rows as visible
         set_row_visible(self.get_row(0));
-        set_row_visible(self.get_row(self.num_rows() - 1));
+        let last_row = self.num_rows() - 1;
+        set_row_visible(self.get_row(last_row));
 
         // Set left/right cols as visible
         self.get_column_indexes(0).into_iter().for_each(|id| {
@@ -351,7 +286,7 @@ mod tests {
     fn test_get_column_indexes() {
         let grid = Grid::from_file_str(get_data());
 
-        assert_eq!(grid.width, 5);
+        assert_eq!(grid.num_cols(), 5);
 
         assert_eq!(grid.get_column_indexes(0), vec![0, 5, 10, 15, 20]);
         assert_eq!(grid.get_column_indexes(1), vec![1, 6, 11, 16, 21]);
