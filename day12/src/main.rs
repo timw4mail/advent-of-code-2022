@@ -1,6 +1,5 @@
 use aoc_shared::enums::Direction;
 use aoc_shared::grid::Grid as BaseGrid;
-use aoc_shared::grid::Grid2d;
 use aoc_shared::impl_grid_newtype;
 
 #[derive(Debug)]

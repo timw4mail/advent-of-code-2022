@@ -1,6 +1,5 @@
 use aoc_shared::impl_grid_newtype;
 use aoc_shared::grid::Grid as BaseGrid;
-use aoc_shared::grid::Grid2d;
 use std::collections::HashSet;
 
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]

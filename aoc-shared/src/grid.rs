@@ -6,34 +6,52 @@ pub struct Grid<T> {
     pub vec: Vec<T>,
 }
 
-pub trait Grid2d<T> {
-    fn new(width: usize) -> Self;
+impl<T> Grid<T> {
+    pub fn new(width: usize) -> Self {
+        Grid {
+            width,
+            vec: Vec::new(),
+        }
+    }
 
-    fn len(&self) -> usize;
+    pub fn len(&self) -> usize {
+        self.vec.len()
+    }
 
-    fn num_cols(&self) -> usize;
+    pub fn num_cols(&self) -> usize {
+        self.width
+    }
 
-    fn num_rows(&self) -> usize {
+    pub fn num_rows(&self) -> usize {
         self.len() / self.num_cols()
     }
 
     // Convert x,y coordinate into linear array index
-    fn xy_idx(&self, x: usize, y: usize) -> usize {
+    pub fn xy_idx(&self, x: usize, y: usize) -> usize {
         (y * self.num_cols()) + x
     }
 
     /// Convert linear array index to x,y coordinate
-    fn idx_xy(&self, idx: usize) -> (usize, usize) {
+    pub fn idx_xy(&self, idx: usize) -> (usize, usize) {
         (idx % self.num_cols(), idx / self.num_cols())
     }
 
-    fn get(&self, idx: usize) -> Option<&T>;
+    pub fn get(&self, idx: usize) -> Option<&T> {
+        self.vec.get(idx)
+    }
 
-    fn get_mut(&mut self, idx: usize) -> Option<&mut T>;
+    pub fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
+        self.vec.get_mut(idx)
+    }
 
-    fn get_row(&mut self, row_num: usize) -> &mut [T];
+    pub fn get_row(&mut self, row_num: usize) -> &mut [T] {
+        let start = self.row_first_idx(row_num);
+        let end = self.row_last_idx(row_num);
 
-    fn row_first_idx(&self, row: usize) -> usize {
+        &mut self.vec[start..=end]
+    }
+
+    pub fn row_first_idx(&self, row: usize) -> usize {
         let idx = row * self.num_cols();
 
         if idx < self.len() {
@@ -43,7 +61,7 @@ pub trait Grid2d<T> {
         }
     }
 
-    fn row_last_idx(&self, row: usize) -> usize {
+    pub fn row_last_idx(&self, row: usize) -> usize {
         if (row + 1) > self.num_rows() {
             return self.len();
         }
@@ -51,11 +69,11 @@ pub trait Grid2d<T> {
         self.row_first_idx(row + 1) - 1
     }
 
-    fn get_row_indexes(&self, row_num: usize) -> Vec<usize> {
+    pub fn get_row_indexes(&self, row_num: usize) -> Vec<usize> {
         (self.row_first_idx(row_num)..=self.row_last_idx(row_num)).collect()
     }
 
-    fn get_column_indexes(&self, col_num: usize) -> Vec<usize> {
+    pub fn get_column_indexes(&self, col_num: usize) -> Vec<usize> {
         let mut indexes = Vec::new();
 
         if col_num >= self.num_cols() {
@@ -72,38 +90,6 @@ pub trait Grid2d<T> {
         }
 
         indexes
-    }
-}
-
-impl<T> Grid2d<T> for Grid<T> {
-    fn new(width: usize) -> Self {
-        Grid {
-            width,
-            vec: Vec::new(),
-        }
-    }
-
-    fn len(&self) -> usize {
-        self.vec.len()
-    }
-
-    fn num_cols(&self) -> usize {
-        self.width
-    }
-
-    fn get(&self, idx: usize) -> Option<&T> {
-        self.vec.get(idx)
-    }
-
-    fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
-        self.vec.get_mut(idx)
-    }
-
-    fn get_row(&mut self, row_num: usize) -> &mut [T] {
-        let start = self.row_first_idx(row_num);
-        let end = self.row_last_idx(row_num);
-
-        &mut self.vec[start..=end]
     }
 }
 
