@@ -1,15 +1,5 @@
-use malachite::integer::Integer;
-use malachite::num::arithmetic::traits::DivisibleBy;
-use malachite::num::arithmetic::traits::Square;
-use malachite::num::basic::traits::Zero;
 use std::collections::VecDeque;
 use std::str::FromStr;
-
-/// Just to cut down on boilerplate for operations
-/// with primitive types
-fn big(n: usize) -> Integer {
-    n.into()
-}
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum WorryType {
@@ -17,10 +7,10 @@ pub enum WorryType {
     Extra,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 enum Operand {
     Old,
-    Literal(Integer)
+    Literal(usize),
 }
 
 #[derive(Debug)]
@@ -33,24 +23,21 @@ impl Operation {
     fn new(operator: char, operand: &str) -> Self {
         let operand = match operand {
             "old" => Operand::Old,
-            _ => Operand::Literal(Integer::from_str(operand).unwrap()),
+            _ => Operand::Literal(usize::from_str(operand).unwrap()),
         };
 
-        Operation {
-            operator,
-            operand,
-        }
+        Operation { operator, operand }
     }
 
     #[inline(always)]
-    fn run(&self, old: Integer) -> Integer {
-        let operand = self.operand.clone();
+    fn run(&self, old: usize) -> usize {
+        let operand = self.operand;
         if operand == Operand::Old && self.operator == '*' {
-            return old.square();
+            return old * old;
         }
 
         let other = match operand {
-            Operand::Old => old.clone(),
+            Operand::Old => old,
             Operand::Literal(other) => other,
         };
 
@@ -64,12 +51,12 @@ impl Operation {
 
 #[derive(Debug)]
 pub struct Monkey {
-    items: VecDeque<Integer>,
+    items: VecDeque<usize>,
     operation: Operation,
-    test: Integer,
+    test: usize,
     pass_monkey: usize,
     fail_monkey: usize,
-    inspection_count: Integer,
+    inspection_count: usize,
     inspection_worry: WorryType,
 }
 
@@ -78,9 +65,9 @@ impl Monkey {
         let lines: Vec<&str> = raw.lines().collect();
 
         let item_parts: Vec<&str> = lines[1].split(": ").collect();
-        let items: VecDeque<Integer> = item_parts[1]
+        let items: VecDeque<usize> = item_parts[1]
             .split(", ")
-            .map(|i| i.parse::<Integer>().unwrap())
+            .map(|i| i.parse::<usize>().unwrap())
             .collect();
 
         let op_parts: Vec<&str> = lines[2].split(" = ").collect();
@@ -101,21 +88,18 @@ impl Monkey {
 
         Monkey {
             items,
-            operation: Operation::new(
-                operator.chars().next().unwrap(),
-                operand
-            ),
-            test: big(test),
+            operation: Operation::new(operator.chars().next().unwrap(), operand),
+            test,
             pass_monkey,
             fail_monkey,
-            inspection_count: Integer::ZERO,
+            inspection_count: 0,
             inspection_worry,
         }
     }
 
     #[inline(always)]
-    fn run_test(&self, item: &Integer) -> usize {
-        if item.divisible_by(&self.test) {
+    fn run_test(&self, item: &usize) -> usize {
+        if item % self.test == 0 {
             self.pass_monkey
         } else {
             self.fail_monkey
@@ -123,12 +107,17 @@ impl Monkey {
     }
 
     #[inline(always)]
-    pub fn inspect(&mut self, item: Integer) -> (usize, Integer) {
-        self.inspection_count += big(1);
+    pub fn inspect(&mut self, mut item: usize, divisor_product: usize) -> (usize, usize) {
+        self.inspection_count += 1;
 
         let worry = if self.inspection_worry == WorryType::Normal {
-            self.operation.run(item) / big(3)
+            self.operation.run(item) / 3
         } else {
+            // This is the whole key to keeping the number small enough to be practical.
+            // I don't really understand it, but I was sick of this not being finished,
+            // so I based the fix on
+            // https://fasterthanli.me/series/advent-of-code-2022/part-11
+            item %= divisor_product;
             self.operation.run(item)
         };
 
@@ -138,7 +127,7 @@ impl Monkey {
     }
 
     #[inline(always)]
-    pub fn catch(&mut self, item: Integer) {
+    pub fn catch(&mut self, item: usize) {
         self.items.push_back(item);
     }
 }
@@ -146,20 +135,27 @@ impl Monkey {
 #[derive(Debug)]
 pub struct MonkeyGame {
     monkeys: Vec<Monkey>,
+    divisor_product: usize,
 }
 
 impl MonkeyGame {
     pub fn from_file_str(file_str: &'static str, inspection_worry: WorryType) -> Self {
         let behaviors = file_str.split("\n\n");
 
+        let monkeys: Vec<Monkey> = behaviors
+            .map(|m| Monkey::from_behavior(m, inspection_worry))
+            .collect();
+
+        // The magic divisor for getting the result with normal integer sizes
+        let divisor_product = monkeys.iter().map(|m| m.test).product::<usize>();
+
         Self {
-            monkeys: behaviors
-                .map(|m| Monkey::from_behavior(m, inspection_worry))
-                .collect(),
+            monkeys,
+            divisor_product,
         }
     }
 
-    fn throw(&mut self, item: Integer, to: usize) {
+    fn throw(&mut self, item: usize, to: usize) {
         self.monkeys[to].catch(item);
     }
 
@@ -172,7 +168,7 @@ impl MonkeyGame {
 
             for m in 0..self.monkeys.len() {
                 while let Some(worry) = self.monkeys[m].items.pop_front() {
-                    let (monkey_idx, worry) = self.monkeys[m].inspect(worry);
+                    let (monkey_idx, worry) = self.monkeys[m].inspect(worry, self.divisor_product);
                     self.throw(worry, monkey_idx);
                 }
             }
@@ -181,8 +177,8 @@ impl MonkeyGame {
         self
     }
 
-    pub fn get_inspection_counts(&self) -> Vec<Integer> {
-        let mut counts: Vec<Integer> = self
+    pub fn get_inspection_counts(&self) -> Vec<usize> {
+        let mut counts: Vec<usize> = self
             .monkeys
             .iter()
             .map(|m| m.inspection_count.clone())
@@ -193,7 +189,7 @@ impl MonkeyGame {
         counts.into_iter().rev().collect()
     }
 
-    pub fn get_monkey_business(&self) -> Integer {
+    pub fn get_monkey_business(&self) -> usize {
         let inspections = self.get_inspection_counts();
 
         inspections.get(0).unwrap() * inspections.get(1).unwrap()
@@ -226,20 +222,10 @@ mod tests {
         let mut game = MonkeyGame::from_file_str(get_test_data(), WorryType::Normal);
         game.do_rounds(1);
 
-        assert_eq!(
-            game.monkeys[0].items,
-            VecDeque::from([big(20), big(23), big(27), big(26)])
-        );
+        assert_eq!(game.monkeys[0].items, VecDeque::from([20, 23, 27, 26]));
         assert_eq!(
             game.monkeys[1].items,
-            VecDeque::from([
-                big(2080),
-                big(25),
-                big(167),
-                big(207),
-                big(401),
-                big(1046)
-            ])
+            VecDeque::from([2080, 25, 167, 207, 401, 1046])
         );
         assert_eq!(game.monkeys[2].items, VecDeque::new());
         assert_eq!(game.monkeys[3].items, VecDeque::new());
@@ -250,17 +236,9 @@ mod tests {
         let mut game = MonkeyGame::from_file_str(get_test_data(), WorryType::Normal);
         game.do_rounds(20);
 
-        assert_eq!(game.monkeys[0].inspection_count, big(101));
-        assert_eq!(game.monkeys[3].inspection_count, big(105));
-        assert_eq!(game.get_monkey_business(), big(10605));
-    }
-
-    fn monkey_10_000_rounds() {
-        let mut game = MonkeyGame::from_file_str(get_test_data(), WorryType::Normal);
-        game.do_rounds(10_000);
-
-        assert_eq!(game.monkeys[0].inspection_count, big(52166));
-        assert_eq!(game.monkeys[3].inspection_count, big(52013));
+        assert_eq!(game.monkeys[0].inspection_count, 101);
+        assert_eq!(game.monkeys[3].inspection_count, 105);
+        assert_eq!(game.get_monkey_business(), 10605);
     }
 
     #[test]
@@ -268,26 +246,27 @@ mod tests {
         let mut game = MonkeyGame::from_file_str(get_test_data(), WorryType::Extra);
         game.do_rounds(20);
 
-        assert_eq!(game.monkeys[0].inspection_count, big(99));
-        assert_eq!(game.monkeys[3].inspection_count, big(103));
-        assert_eq!(game.get_monkey_business(), big(10197));
+        assert_eq!(game.monkeys[0].inspection_count, 99);
+        assert_eq!(game.monkeys[3].inspection_count, 103);
+        assert_eq!(game.get_monkey_business(), 10197);
     }
 
-
+    #[test]
     fn monkey_1000_rounds_extra_worry() {
         let mut game = MonkeyGame::from_file_str(get_test_data(), WorryType::Extra);
         game.do_rounds(1000);
 
-        assert_eq!(game.monkeys[0].inspection_count, big(5204));
-        assert_eq!(game.monkeys[3].inspection_count, big(5192));
+        assert_eq!(game.monkeys[0].inspection_count, 5204);
+        assert_eq!(game.monkeys[3].inspection_count, 5192);
     }
 
-
+    #[test]
     fn monkey_10_000_rounds_extra_worry() {
         let mut game = MonkeyGame::from_file_str(get_test_data(), WorryType::Extra);
         game.do_rounds(10_000);
 
-        assert_eq!(game.monkeys[0].inspection_count, big(52166));
-        assert_eq!(game.monkeys[3].inspection_count, big(52013));
+        assert_eq!(game.monkeys[0].inspection_count, 52166);
+        assert_eq!(game.monkeys[3].inspection_count, 52013);
+        assert_eq!(game.get_monkey_business(), 2713310158);
     }
 }
