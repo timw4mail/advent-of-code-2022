@@ -78,17 +78,22 @@ impl Grid<char> {
             return false;
         }
 
-        // Is the elevation change 0 or 1?
-        let start_char = *start_char.unwrap();
+        // Is the character a lowercase letter?
+        let mut start_char = *start_char.unwrap();
         let end_char = *end_char.unwrap();
+        if !(start_char.is_ascii_lowercase() && end_char.is_ascii_lowercase()) {
+            return false;
+        }
+
+        // Is the elevation change 0 or 1?
         let start_char = start_char
             .to_digit(36)
-            .expect(&format!("Should be a digit: {}", start_char)) as i32;
+            .expect(&format!("Should be a digit: {}", start_char));
         let end_char = end_char
             .to_digit(36)
-            .expect(&format!("Should be a digit: {}", end_char)) as i32;
-        let diff = end_char - start_char;
-        if diff > 1 || diff < 0 || end_char < start_char {
+            .expect(&format!("Should be a digit: {}", end_char));
+        let diff = u32::abs_diff(end_char, start_char);
+        if diff > 1  {
             return false;
         }
 
@@ -104,7 +109,7 @@ impl Grid<char> {
         }
     }
 
-    fn find_valid_moves(&self, start: usize) -> Vec<usize> {
+    fn find_moves(&self, start: usize) -> Vec<usize> {
         [
             Direction::Up,
             Direction::Down,
@@ -115,6 +120,12 @@ impl Grid<char> {
             .map(|d| self.get_index_for_move(start, d))
             .filter(|m| m.is_some())
             .map(|m| m.unwrap())
+            .collect()
+    }
+
+    fn find_valid_moves(&self, start: usize) -> Vec<usize> {
+        self.find_moves(start)
+            .into_iter()
             .filter(|m| self.is_valid_move(start, *m))
             .collect()
     }
@@ -273,6 +284,10 @@ impl Pathfinder {
     fn add_children(&mut self, node: &mut Node, idx: usize) {
         let possible_moves = self.grid.find_valid_moves(idx);
 
+        if possible_moves.len() == 0 {
+            return;
+        }
+
         for m in possible_moves {
             if node.contains(m) {
                 continue;
@@ -316,12 +331,9 @@ impl Pathfinder {
 fn main() {
     let file_str = include_str!("input.txt");
     let mut finder = Pathfinder::from_file_str(file_str);
+    let shortest_path = finder.find_shortest_path();
 
-    // dbg!(finder);
-    finder.grid.print();
-    // let shortest_path = finder.find_shortest_path();
-
-    // println!("Part 1: Fewest steps: {}", shortest_path.get_len());
+    println!("Part 1: Fewest steps: {}", shortest_path.get_len());
 }
 
 #[cfg(test)]
@@ -347,9 +359,7 @@ mod tests {
     #[test]
     fn find_shortest_path() {
         let mut finder = get_finder();
-        finder.grid.print();
         let shortest = finder.find_shortest_path();
-
         assert_eq!(shortest.get_len(), 31);
     }
 }
