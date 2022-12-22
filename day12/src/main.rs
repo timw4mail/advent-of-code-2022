@@ -79,9 +79,9 @@ impl Node {
         return self.parents.contains(&value);
     }
 
-    pub fn get_leaves(&self) -> Vec<Node> {
+    pub fn get_leaves(&self) -> Vec<&Node> {
         if self.is_leaf() {
-            return vec![self.to_owned()];
+            return vec![self];
         }
 
         let mut leaves = Vec::new();
@@ -110,7 +110,6 @@ impl Node {
 
 #[derive(Debug)]
 pub struct Pathfinder {
-    current_elevation: char,
     start_idx: usize,
     end_idx: usize,
     grid: Grid<char>,
@@ -120,7 +119,6 @@ pub struct Pathfinder {
 impl Pathfinder {
     pub fn from_file_str(file_str: &str) -> Self {
         let mut pf = Pathfinder {
-            current_elevation: 'a',
             start_idx: 0,
             end_idx: 0,
             grid: Grid::from_file_str(file_str),
@@ -137,7 +135,6 @@ impl Pathfinder {
 
         self.start_idx = start;
         self.end_idx = end;
-        self.current_elevation = 'a';
         self.grid.vec[start] = 'a';
         self.grid.vec[end] = 'z';
         self.tree.idx = start;
@@ -254,22 +251,19 @@ impl Pathfinder {
         self.tree = tree;
     }
 
-    fn get_paths(&self) -> Vec<Node> {
+    fn get_paths(&self) -> impl Iterator<Item= &Node> {
         self.tree
             .get_leaves()
             .into_iter()
             .filter(|n| n.idx == self.end_idx)
-            .collect()
     }
 
-    pub fn find_shortest_path(&mut self) -> Node {
+    pub fn find_shortest_path(&mut self) -> &Node {
         self.build_tree();
 
         self.get_paths()
-            .iter()
             .min_by(|a, b| a.get_len().cmp(&b.get_len()))
             .unwrap()
-            .to_owned()
     }
 }
 
@@ -278,9 +272,11 @@ impl Pathfinder {
 fn main() {
     let file_str = include_str!("input.txt");
     let mut finder = Pathfinder::from_file_str(file_str);
-    let shortest_path = finder.find_shortest_path();
 
-    println!("Part 1: Fewest steps: {}", shortest_path.get_len());
+    dbg!(finder);
+    // let shortest_path = finder.find_shortest_path();
+
+    // println!("Part 1: Fewest steps: {}", shortest_path.get_len());
 }
 
 #[cfg(test)]
@@ -305,7 +301,8 @@ mod tests {
 
     #[test]
     fn find_shortest_path() {
-        let shortest = get_finder().find_shortest_path();
+        let mut finder = get_finder();
+        let shortest = finder.find_shortest_path();
 
         assert_eq!(shortest.get_len(), 31);
     }
