@@ -24,7 +24,7 @@ impl Grid<char> {
         self.vec.iter().position(|item| *item == value)
     }
 
-    fn print(&self) {
+    pub fn print(&self) {
         for r in 0usize..self.num_rows() {
             let range = self.row_first_idx(r)..=self.row_last_idx(r);
             let line: String = self.vec[range].iter().collect();
@@ -79,7 +79,7 @@ impl Grid<char> {
         }
 
         // Is the character a lowercase letter?
-        let mut start_char = *start_char.unwrap();
+        let start_char = *start_char.unwrap();
         let end_char = *end_char.unwrap();
         if !(start_char.is_ascii_lowercase() && end_char.is_ascii_lowercase()) {
             return false;
@@ -276,7 +276,7 @@ impl Pathfinder {
         self.end_idx = end;
         self.grid.vec[start] = 'a';
         self.grid.vec[end] = 'z';
-        self.grid.filter_invalid(start);
+        // self.grid.filter_invalid(start);
 
         self.tree.idx = start;
     }
