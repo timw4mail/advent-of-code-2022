@@ -23,6 +23,134 @@ impl Grid<char> {
     fn find_pos(&self, value: char) -> Option<usize> {
         self.vec.iter().position(|item| *item == value)
     }
+
+    fn print(&self) {
+        for r in 0usize..self.num_rows() {
+            let range = self.row_first_idx(r)..=self.row_last_idx(r);
+            let line: String = self.vec[range].iter().collect();
+
+            println!("{}", line);
+        }
+    }
+
+    fn get_index_for_move(&self, from: usize, dir: Direction) -> Option<usize> {
+        let (mut x, mut y) = self.idx_xy(from);
+
+        match dir {
+            Direction::Up => {
+                if y >= 1 {
+                    y -= 1;
+                } else {
+                    return None;
+                }
+            }
+            Direction::Down => {
+                if y < self.num_rows() - 1 {
+                    y += 1;
+                } else {
+                    return None;
+                }
+            }
+            Direction::Left => {
+                if x >= 1 {
+                    x -= 1;
+                } else {
+                    return None;
+                }
+            }
+            Direction::Right => {
+                if x < self.num_cols() - 1 {
+                    x += 1;
+                } else {
+                    return None;
+                }
+            }
+        };
+
+        Some(self.xy_idx(x, y))
+    }
+
+    fn is_valid_move(&self, start: usize, end: usize) -> bool {
+        // Is the item within the grid?
+        let start_char = self.get(start);
+        let end_char = self.get(end);
+        if start_char.is_none() || end_char.is_none() {
+            return false;
+        }
+
+        // Is the elevation change 0 or 1?
+        let start_char = *start_char.unwrap();
+        let end_char = *end_char.unwrap();
+        let start_char = start_char
+            .to_digit(36)
+            .expect(&format!("Should be a digit: {}", start_char)) as i32;
+        let end_char = end_char
+            .to_digit(36)
+            .expect(&format!("Should be a digit: {}", end_char)) as i32;
+        let diff = end_char - start_char;
+        if diff > 1 || diff < 0 || end_char < start_char {
+            return false;
+        }
+
+        let (start_x, start_y) = self.idx_xy(start);
+        let (end_x, end_y) = self.idx_xy(end);
+        let x_diff = usize::abs_diff(end_x, start_x);
+        let y_diff = usize::abs_diff(end_y, start_y);
+
+        // Have we moved 0 or 1 in a cardinal direction?
+        match (x_diff, y_diff) {
+            (0, 0) | (0, 1) | (1, 0) => true,
+            _ => false,
+        }
+    }
+
+    fn find_valid_moves(&self, start: usize) -> Vec<usize> {
+        [
+            Direction::Up,
+            Direction::Down,
+            Direction::Left,
+            Direction::Right,
+        ]
+            .into_iter()
+            .map(|d| self.get_index_for_move(start, d))
+            .filter(|m| m.is_some())
+            .map(|m| m.unwrap())
+            .filter(|m| self.is_valid_move(start, *m))
+            .collect()
+    }
+
+    fn has_valid_neighbor(&self, idx: usize) -> bool {
+        self.find_valid_moves(idx).len() > 0
+    }
+
+    fn filter_invalid(&mut self, from: usize) {
+        let (ch, col_indexes, row_indexes) = {
+            let ch = self.get(from).unwrap();
+            let (col, row) = self.idx_xy(from);
+            let col_indexes = self.get_column_indexes(col);
+            let row_indexes = self.get_row_indexes(row);
+
+            (ch, col_indexes, row_indexes)
+        };
+
+        self.vec = self.vec
+            .clone()
+            .into_iter()
+            .enumerate()
+            .map(|(idx, c)| {
+                if c != *ch {
+                    return c;
+                }
+
+                return if self.has_valid_neighbor(idx) && (col_indexes.contains(&idx) || row_indexes.contains(&idx)) {
+                    c
+                } else {
+                    '0'
+                }
+            })
+            .collect();
+
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -137,97 +265,13 @@ impl Pathfinder {
         self.end_idx = end;
         self.grid.vec[start] = 'a';
         self.grid.vec[end] = 'z';
+        self.grid.filter_invalid(start);
+
         self.tree.idx = start;
     }
 
-    fn get_index_for_move(&self, from: usize, dir: Direction) -> Option<usize> {
-        let (mut x, mut y) = self.grid.idx_xy(from);
-
-        match dir {
-            Direction::Up => {
-                if y >= 1 {
-                    y -= 1;
-                } else {
-                    return None;
-                }
-            }
-            Direction::Down => {
-                if y < self.grid.num_rows() - 1 {
-                    y += 1;
-                } else {
-                    return None;
-                }
-            }
-            Direction::Left => {
-                if x >= 1 {
-                    x -= 1;
-                } else {
-                    return None;
-                }
-            }
-            Direction::Right => {
-                if x < self.grid.num_cols() - 1 {
-                    x += 1;
-                } else {
-                    return None;
-                }
-            }
-        };
-
-        Some(self.grid.xy_idx(x, y))
-    }
-
-    fn is_valid_move(&self, start: usize, end: usize) -> bool {
-        // Is the item within the grid?
-        let start_char = self.grid.get(start);
-        let end_char = self.grid.get(end);
-        if start_char.is_none() || end_char.is_none() {
-            return false;
-        }
-
-        // Is the elevation change 0 or 1?
-        let start_char = *start_char.unwrap();
-        let end_char = *end_char.unwrap();
-        let start_char = start_char
-            .to_digit(36)
-            .expect(&format!("Should be a digit: {}", start_char)) as i32;
-        let end_char = end_char
-            .to_digit(36)
-            .expect(&format!("Should be a digit: {}", end_char)) as i32;
-        let diff = end_char - start_char;
-        if diff > 1 || diff < 0 || end_char < start_char {
-            return false;
-        }
-
-        let (start_x, start_y) = self.grid.idx_xy(start);
-        let (end_x, end_y) = self.grid.idx_xy(end);
-        let x_diff = usize::abs_diff(end_x, start_x);
-        let y_diff = usize::abs_diff(end_y, start_y);
-
-        // Have we moved 0 or 1 in a cardinal direction?
-        match (x_diff, y_diff) {
-            (0, 0) | (0, 1) | (1, 0) => true,
-            _ => false,
-        }
-    }
-
-    fn find_valid_moves(&self, start: usize) -> Vec<usize> {
-        [
-            Direction::Up,
-            Direction::Down,
-            Direction::Left,
-            Direction::Right,
-        ]
-        .into_iter()
-        .map(|d| self.get_index_for_move(start, d))
-        .filter(|m| m.is_some())
-        .map(|m| m.unwrap())
-        .filter(|m| self.is_valid_move(start, *m))
-        .collect()
-    }
-
     fn add_children(&mut self, node: &mut Node, idx: usize) {
-        let possible_moves = self.find_valid_moves(idx);
+        let possible_moves = self.grid.find_valid_moves(idx);
 
         for m in possible_moves {
             if node.contains(m) {
@@ -273,7 +317,8 @@ fn main() {
     let file_str = include_str!("input.txt");
     let mut finder = Pathfinder::from_file_str(file_str);
 
-    dbg!(finder);
+    // dbg!(finder);
+    finder.grid.print();
     // let shortest_path = finder.find_shortest_path();
 
     // println!("Part 1: Fewest steps: {}", shortest_path.get_len());
@@ -295,13 +340,14 @@ mod tests {
     fn find_valid_moves() {
         let finder = get_finder();
 
-        assert_eq!(finder.find_valid_moves(finder.start_idx), vec![8, 1]);
-        assert_eq!(finder.find_valid_moves(8), vec![0, 16, 9]);
+        assert_eq!(finder.grid.find_valid_moves(finder.start_idx), vec![8, 1]);
+        assert_eq!(finder.grid.find_valid_moves(8), vec![0, 16, 9]);
     }
 
     #[test]
     fn find_shortest_path() {
         let mut finder = get_finder();
+        finder.grid.print();
         let shortest = finder.find_shortest_path();
 
         assert_eq!(shortest.get_len(), 31);
