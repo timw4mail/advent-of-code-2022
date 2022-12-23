@@ -18,6 +18,10 @@ impl<T> Grid<T> {
         self.vec.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.vec.is_empty()
+    }
+
     pub fn num_cols(&self) -> usize {
         self.width
     }

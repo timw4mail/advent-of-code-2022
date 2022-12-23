@@ -1,6 +1,6 @@
 use std::collections::HashSet;
-use aoc_shared::enums::*;
-use aoc_shared::enums::Direction::*;
+use aoc_shared::{Location, Direction};
+use aoc_shared::Direction::*;
 
 struct Move {
     dir: Direction,
@@ -21,24 +21,6 @@ impl Move {
         let amount = parts[1].parse::<isize>().unwrap();
 
         Move { dir, amount }
-    }
-}
-
-#[derive(Debug, Default, Copy, Clone, Eq, Hash, PartialEq)]
-struct Location {
-    x: isize,
-    y: isize,
-}
-
-impl Location {
-    fn new(x: isize, y: isize) -> Self {
-        Location { x, y }
-    }
-
-    fn get_distance(self, other: Self) -> f64 {
-        let squares = (other.x - self.x).pow(2) + (other.y - self.y).pow(2);
-
-        (squares as f64).sqrt()
     }
 }
 
@@ -97,8 +79,6 @@ impl Rope {
             for i in 1..self.knot_count {
                 self.move_knot(i, i - 1);
             }
-            // self.head = to;
-            // self.head_visited.insert(to);
         }
     }
 
