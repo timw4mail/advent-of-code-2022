@@ -20,9 +20,7 @@ impl Node {
 
         self.append(child);
 
-        self.children
-            .last_mut()
-            .unwrap()
+        self.children.last_mut().unwrap()
     }
 
     fn append(&mut self, node: Node) -> &mut Self {
@@ -50,9 +48,7 @@ impl Node {
 
         let mut leaves = Vec::new();
 
-        let children = self
-            .children
-            .iter();
+        let children = self.children.iter();
 
         for child in children {
             let mut child_leaves = child.get_leaves();
