@@ -1,13 +1,6 @@
 use std::collections::HashSet;
-
-#[derive(Debug)]
-enum Direction {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-use Direction::*;
+use aoc_shared::enums::*;
+use aoc_shared::enums::Direction::*;
 
 struct Move {
     dir: Direction,
